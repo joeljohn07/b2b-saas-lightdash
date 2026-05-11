@@ -1,0 +1,28 @@
+# Lightdash project config
+#
+# This file connects the Lightdash instance to the b2b-saas-dbt project.
+# Lightdash reads the dbt manifest from the sibling project directory and
+# surfaces models with `meta.dimensions` / `meta.metrics` annotations as
+# explores.
+#
+# Local development assumes both repos live as siblings under
+# ~/Agentic/projects/. Adjust the `project_dir` path if your layout differs.
+
+version: 1.0
+
+# The dbt project this Lightdash instance is built on top of.
+# Path is relative to this lightdash.yml file.
+project_dir: ../b2b-saas-dbt
+
+# Warehouse connection — values populated from environment at runtime.
+# See docs/architecture.md for the env-var contract.
+warehouse:
+  type: bigquery
+  project: "${GCP_PROJECT_ID}"
+  location: EU
+  threads: 4
+  # Authentication: matches the dbt project — `gcloud auth application-default
+  # login` locally; OIDC/WIF in CI (planned via #390).
+
+# Which dbt target Lightdash reads.
+target: dev
