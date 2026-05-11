@@ -15,6 +15,11 @@ services:
   lightdash:
     image: lightdash/lightdash:latest
     container_name: lightdash
+    # The official Lightdash image is amd64-only. On Apple Silicon (M-series)
+    # this requires QEMU emulation — Colima auto-installs the emulator. Slower
+    # than native but functional. Drop this line on amd64 hosts (Linux servers,
+    # Intel Macs) for native speed.
+    platform: linux/amd64
     depends_on:
       db:
         condition: service_healthy
