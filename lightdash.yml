@@ -1,9 +1,8 @@
 # Lightdash project config
 #
-# This file connects the Lightdash instance to the b2b-saas-dbt project.
-# Lightdash reads the dbt manifest from the sibling project directory and
-# surfaces models with `meta.dimensions` / `meta.metrics` annotations as
-# explores.
+# Connects the Lightdash instance to the sibling b2b-saas-dbt project.
+# Lightdash reads the dbt manifest and surfaces every mart model with
+# meta.dimension / meta.metric annotations as an explore.
 #
 # Local development assumes both repos live as siblings under
 # ~/Agentic/projects/. Adjust the `project_dir` path if your layout differs.
@@ -26,3 +25,75 @@ warehouse:
 
 # Which dbt target Lightdash reads.
 target: dev
+
+# -----------------------------------------------------------------------------
+# Default formatting
+# -----------------------------------------------------------------------------
+# Applied across all explores unless a column overrides via meta.dimension.format.
+# These defaults match the conventions documented in docs/governance-principles.md.
+
+formatting:
+  # Dates: ISO-style, locale-neutral. Useful for both EU and US viewers.
+  date_format: "YYYY-MM-DD"
+  # Timestamps: same ISO basis with seconds precision.
+  timestamp_format: "YYYY-MM-DD HH:mm:ss"
+  # Numbers: thousands separator, no forced decimals (Lightdash decides per type).
+  number_thousands_separator: ","
+  number_decimal_separator: "."
+  # Currency: USD-equivalent (the synthetic dataset is single-currency).
+  # Override per-column for any future multi-currency expansion.
+  currency_default: USD
+  # Percentages: one decimal place, "%" suffix.
+  percentage_decimal_places: 1
+
+# -----------------------------------------------------------------------------
+# Spaces / Domain grouping
+# -----------------------------------------------------------------------------
+# Mart models are grouped into spaces matching the dbt subdirectory layout.
+# Models inherit their space from the table-to-space map below; an explicit
+# meta.space override on a dbt model takes precedence.
+
+spaces:
+  Product:
+    - fct_sessions
+    - fct_feature_usage
+    - fct_signups
+    - fct_activations
+    - dim_users
+    - dim_accounts
+    - dim_sessions
+  Revenue:
+    - fct_mrr_movements
+    - fct_subscriptions
+    - fct_invoices
+  Growth:
+    - fct_retention_cohorts
+    - fct_marketing_spend
+    - dim_channels
+  Support:
+    - fct_support_tickets
+  Experimentation:
+    - fct_experiment_exposures
+    - dim_experiments
+    - bridge_user_experiments
+
+# -----------------------------------------------------------------------------
+# Joins
+# -----------------------------------------------------------------------------
+# Lightdash auto-discovers join paths from the FK `relationships` tests
+# declared on the dbt models (see b2b-saas-dbt/models/marts/**/_models.yml).
+# Every fact-to-dimension join in the marts is covered by a relationships
+# test, so no manual join declarations are required here.
+#
+# The conformed join paths are:
+#   fct_*  ──[user_key]──>  dim_users
+#   fct_*  ──[account_key]──> dim_accounts
+#   fct_*  ──[*_date_key]──> dim_date
+#   fct_*  ──[channel_key]──> dim_channels
+#   fct_sessions ──[session_key]──> dim_sessions
+#   fct_experiment_exposures ──[experiment_key]──> dim_experiments
+#                            ──[(user_key, experiment_key)]──> bridge_user_experiments
+#
+# To document or override a join, edit the corresponding model in the dbt
+# repo: add `meta.joins:` at the model level. Do not redefine joins here —
+# the metric-ownership rule applies (definitions live in dbt).
