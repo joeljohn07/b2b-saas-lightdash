@@ -1,0 +1,15 @@
+# b2b-saas-lightdash — LLM Entry Point
+
+## Read First
+1. CLAUDE.md — project rules and non-negotiables
+2. AGENTS.md — module layout and TDD requirements
+3. decisions.md — architecture decisions
+
+## What This Does
+Lightdash BI layer on top of b2b-saas-dbt — dashboards, semantic exposure, agent-ready MCP surface
+
+## Key Files
+- (fill in as project grows)
+
+## Run Tests
+echo 'No test runner configured — add your test command here'

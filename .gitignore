@@ -1,0 +1,16 @@
+# Secrets / auth
+.env
+.env.*
+.secrets/
+*.token
+*.key
+*.pem
+
+# Runtime artifacts
+state.json
+tmp/
+
+# OS / editor
+.DS_Store
+*.swp
+*.swo
