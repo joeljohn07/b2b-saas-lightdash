@@ -54,3 +54,63 @@ def test_project_dir_relative_path_resolves():
     data = _config()
     resolved = (REPO_ROOT / data["project_dir"]).resolve()
     assert resolved.name == "b2b-saas-dbt"
+
+
+def test_formatting_defaults_present():
+    """Project-wide formatting defaults (dates, numbers, currency) must be declared
+    so every explore inherits consistent display rules."""
+    data = _config()
+    fmt = data.get("formatting", {})
+    for key in ("date_format", "timestamp_format", "currency_default",
+                "number_thousands_separator", "percentage_decimal_places"):
+        assert key in fmt, f"lightdash.yml missing formatting.{key}"
+
+
+def test_spaces_cover_every_mart_model():
+    """Every mart model declared in the dbt project must be assigned to a Lightdash
+    space. Catches drift between the two repos."""
+    data = _config()
+    spaces = data.get("spaces", {})
+    all_assigned = {model for models in spaces.values() for model in models}
+
+    expected = {
+        # Product
+        "fct_sessions", "fct_feature_usage", "fct_signups", "fct_activations",
+        "dim_users", "dim_accounts", "dim_sessions",
+        # Revenue
+        "fct_mrr_movements", "fct_subscriptions", "fct_invoices",
+        # Growth
+        "fct_retention_cohorts", "fct_marketing_spend", "dim_channels",
+        # Support
+        "fct_support_tickets",
+        # Experimentation
+        "fct_experiment_exposures", "dim_experiments", "bridge_user_experiments",
+    }
+
+    missing = expected - all_assigned
+    assert not missing, f"Marts not assigned to any space: {missing}"
+
+
+def test_no_model_assigned_to_multiple_spaces():
+    """Each mart belongs to exactly one space — no double-counting."""
+    data = _config()
+    spaces = data.get("spaces", {})
+    seen = {}
+    for space, models in spaces.items():
+        for model in models:
+            assert model not in seen, (
+                f"{model} is in both '{seen[model]}' and '{space}' spaces"
+            )
+            seen[model] = space
+
+
+def test_joins_doc_exists_and_links_to_dbt_quality_gates():
+    """docs/joins.md must exist and explain that joins live in dbt, not here."""
+    joins_doc = REPO_ROOT / "docs/joins.md"
+    assert joins_doc.exists(), "docs/joins.md must exist"
+    content = joins_doc.read_text()
+    # Sanity-check the doc actually explains the policy
+    for keyword in ("relationships", "dbt", "manifest"):
+        assert keyword.lower() in content.lower(), (
+            f"docs/joins.md must mention '{keyword}'"
+        )
