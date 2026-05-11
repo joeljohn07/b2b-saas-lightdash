@@ -14,3 +14,12 @@ tmp/
 .DS_Store
 *.swp
 *.swo
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Lightdash runtime
+.lightdash/
+target/
