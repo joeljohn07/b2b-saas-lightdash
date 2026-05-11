@@ -1,0 +1,66 @@
+# Self-hosted Lightdash stack for local development against the sibling
+# b2b-saas-dbt project. See docs/setup.md for the full setup walkthrough.
+#
+# Services:
+#   - lightdash  : the Lightdash web app (port 8080)
+#   - db         : Postgres for Lightdash's own metadata
+#                  (NOT the data warehouse — that's BigQuery, configured via
+#                  the Lightdash UI on first run)
+#
+# Authentication to BigQuery is handled inside the Lightdash project setup,
+# not here. For local dev, mount your gcloud ADC credentials (see setup.md).
+# For deployment, paste a service-account key into the Lightdash UI.
+
+services:
+  lightdash:
+    image: lightdash/lightdash:latest
+    container_name: lightdash
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # ---- Lightdash core ----
+      LIGHTDASH_SECRET: ${LIGHTDASH_SECRET}
+      LIGHTDASH_LOG_LEVEL: ${LIGHTDASH_LOG_LEVEL:-info}
+      SITE_URL: ${SITE_URL:-http://localhost:8080}
+      PORT: 8080
+      # ---- Postgres backend for Lightdash metadata ----
+      PGHOST: db
+      PGPORT: 5432
+      PGUSER: ${PGUSER:-lightdash}
+      PGPASSWORD: ${PGPASSWORD}
+      PGDATABASE: ${PGDATABASE:-lightdash}
+      # ---- dbt project location (inside the container) ----
+      # The dbt project is mounted from the sibling repo, see `volumes` below.
+      DBT_PROJECT_DIR: /usr/app/dbt
+    ports:
+      - "${LIGHTDASH_PORT:-8080}:8080"
+    volumes:
+      # Mount the sibling b2b-saas-dbt project read-only.
+      # Adjust the host path if your local layout differs from
+      # ~/Agentic/projects/{b2b-saas-dbt,b2b-saas-lightdash}.
+      - ../b2b-saas-dbt:/usr/app/dbt:ro
+      # Mount gcloud ADC credentials for local BigQuery auth.
+      # Skip this in production — paste a service-account key into the
+      # Lightdash UI on first project setup instead.
+      - ${HOME}/.config/gcloud:/root/.config/gcloud:ro
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: lightdash-db
+    environment:
+      POSTGRES_USER: ${PGUSER:-lightdash}
+      POSTGRES_PASSWORD: ${PGPASSWORD}
+      POSTGRES_DB: ${PGDATABASE:-lightdash}
+    volumes:
+      - lightdash-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PGUSER:-lightdash} -d ${PGDATABASE:-lightdash}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  lightdash-pgdata:

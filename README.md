@@ -22,14 +22,24 @@ Keeping consumption separate from definition is the same boundary every healthy 
 - **Open-source self-hostable.** Docker Compose runs the whole stack locally — no SaaS dependency for the portfolio.
 - **MCP server first-class.** Lightdash exposes an MCP server that answers metric questions over the same semantic layer that powers the dashboards. Agents and dashboards share one source of truth.
 
-## What's Here (Scaffold)
+## What's Here
 
-This repo is a scaffold. The current state is:
+- **Self-hostable Docker stack** — `docker-compose.yml` runs Lightdash + a Postgres metadata backend. See [`docs/setup.md`](docs/setup.md) for the cold-start walkthrough.
+- **Governance** — chart and dashboard lifecycle, naming conventions, anti-patterns: [`docs/governance-principles.md`](docs/governance-principles.md).
+- **Metric ownership** — the dbt-as-single-authority rule and what (rarely) lives in Lightdash: [`docs/metric-ownership.md`](docs/metric-ownership.md).
+- **Architecture** — position in the 3-repo stack, data flow, what this repo doesn't do: [`docs/architecture.md`](docs/architecture.md).
+- **Tiered context** — root [`CLAUDE.md`](CLAUDE.md) for project-wide rules, per-directory [`charts/CLAUDE.md`](charts/CLAUDE.md) and [`dashboards/CLAUDE.md`](dashboards/CLAUDE.md) for tier-1 rules.
+- **Tests** — 22 contract tests covering config, governance, and compose structure.
 
-- Project structure, governance, CLAUDE.md / AGENTS.md instruction contract.
-- Initial `lightdash.yml` referencing the dbt project.
-- Decisions log seeded with the cross-repo architecture.
-- Standard pre-commit + secret-scan hooks.
+## Quick Start
+
+```bash
+cp .env.example .env       # then edit secrets
+docker compose up -d
+open http://localhost:8080
+```
+
+Full setup including BigQuery auth and connecting to the sibling dbt project: [`docs/setup.md`](docs/setup.md).
 
 ## What's Coming
 

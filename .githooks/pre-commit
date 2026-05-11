@@ -16,7 +16,22 @@ BLOCKED_PATTERNS=(
 
 STAGED=$(git diff --cached --name-only --diff-filter=ACM)
 
+# Files matching a blocked pattern but explicitly safe to commit.
+# .env.example is the canonical template file — never contains real secrets.
+ALLOWLIST=(
+    '\.env\.example$'
+)
+
 for file in $STAGED; do
+    skip=0
+    for allow in "${ALLOWLIST[@]}"; do
+        if echo "$file" | grep -qE "$allow"; then
+            skip=1
+            break
+        fi
+    done
+    [[ $skip -eq 1 ]] && continue
+
     for pattern in "${BLOCKED_PATTERNS[@]}"; do
         if echo "$file" | grep -qE "$pattern"; then
             echo "BLOCKED: $file matches blocked pattern '$pattern'"

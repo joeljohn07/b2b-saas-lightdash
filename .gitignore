@@ -1,6 +1,7 @@
 # Secrets / auth
 .env
 .env.*
+!.env.example
 .secrets/
 *.token
 *.key
