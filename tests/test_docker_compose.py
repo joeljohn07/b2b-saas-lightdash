@@ -49,6 +49,18 @@ def test_lightdash_service_uses_official_image():
     )
 
 
+def test_lightdash_platform_pinned_to_amd64():
+    """The official Lightdash image is amd64-only. Pinning the platform forces
+    QEMU emulation on Apple Silicon — slow but functional. Without this, the
+    pull fails with `no matching manifest for linux/arm64`. Drop the pin on
+    amd64 hosts for native speed."""
+    data = _compose()
+    platform = data["services"]["lightdash"].get("platform", "")
+    assert platform == "linux/amd64", (
+        f"lightdash service must pin platform to linux/amd64 (got '{platform}')"
+    )
+
+
 def test_lightdash_depends_on_db_with_healthcheck():
     """Lightdash crashes if it tries to connect to Postgres before Postgres is ready,
     so depends_on must include a service_healthy condition."""
