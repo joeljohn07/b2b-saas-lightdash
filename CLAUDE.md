@@ -46,6 +46,18 @@ ls b2b-saas-dbt b2b-saas-lightdash    # both must exist as siblings
 - Squash merge via `gh pr merge --squash`.
 - Pre-push hook blocks direct pushes to main.
 
+## Tiered Context
+
+- **Tier 0 — this file.** Project-wide rules, always loaded.
+- **Tier 1 — per-directory CLAUDE.md.** Domain-specific rules:
+  - [`charts/CLAUDE.md`](charts/CLAUDE.md) — chart naming, metadata, when to create vs reuse.
+  - [`dashboards/CLAUDE.md`](dashboards/CLAUDE.md) — composition, structure, filter rules.
+- **Tier 2 — on-demand reading:**
+  - [`docs/governance-principles.md`](docs/governance-principles.md) — chart/dashboard lifecycle, naming, access control, anti-patterns.
+  - [`docs/metric-ownership.md`](docs/metric-ownership.md) — dbt-vs-Lightdash ownership boundary, when Lightdash-only measures are allowed.
+  - [`docs/architecture.md`](docs/architecture.md) — position in the 3-repo stack, data flow.
+  - [`decisions.md`](decisions.md) — dated architecture decisions with rationale.
+
 ## Status
 
 This repo is at scaffold stage. The orchestration tickets (#390–#393 foundation, #402–#405 dashboards, #410–#412 agent surface) drive the build-out — see README for the full list. Work them in numeric order unless a dependency is explicitly noted.
