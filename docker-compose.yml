@@ -38,13 +38,25 @@ services:
       # ---- dbt project location (inside the container) ----
       # The dbt project is mounted from the sibling repo, see `volumes` below.
       DBT_PROJECT_DIR: /usr/app/dbt
+      # The dbt project's _sources.yml files use env_var('GCP_PROJECT_ID') so
+      # the dbt subprocess inside the container needs this passed through.
+      GCP_PROJECT_ID: ${GCP_PROJECT_ID}
+      # The dbt subprocess Lightdash spawns wants to write logs and compiled
+      # artifacts. We mount the project read-only (deliberately — the user's
+      # working copy must not be mutated by Lightdash), so redirect the writes
+      # to /tmp paths that are writable inside the container.
+      DBT_LOG_PATH: /tmp/dbt-logs
+      DBT_TARGET_PATH: /tmp/dbt-target
     ports:
       - "${LIGHTDASH_PORT:-8080}:8080"
     volumes:
-      # Mount the sibling b2b-saas-dbt project read-only.
-      # Adjust the host path if your local layout differs from
-      # ~/Agentic/projects/{b2b-saas-dbt,b2b-saas-lightdash}.
-      - ../b2b-saas-dbt:/usr/app/dbt:ro
+      # Mount the sibling b2b-saas-dbt project read-write.
+      # dbt deps needs to refresh dbt_packages/ inside the project; read-only
+      # would block it. The host copy is git-tracked, so accidental mutation
+      # by Lightdash is recoverable. Logs and target/ are still redirected to
+      # /tmp via DBT_LOG_PATH and DBT_TARGET_PATH above (keeps the host
+      # working tree clean of run artifacts).
+      - ../b2b-saas-dbt:/usr/app/dbt
       # Mount gcloud ADC credentials for local BigQuery auth.
       # Skip this in production — paste a service-account key into the
       # Lightdash UI on first project setup instead.

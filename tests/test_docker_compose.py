@@ -61,6 +61,22 @@ def test_lightdash_platform_pinned_to_amd64():
     )
 
 
+def test_dbt_log_and_target_paths_redirected():
+    """The dbt subprocess Lightdash spawns wants to write logs and a target/
+    directory. The project mount is read-only (deliberately), so logs and
+    target must be redirected to writable /tmp paths. Without this, the
+    Lightdash 'Test & deploy' step fails with:
+        OSError: [Errno 30] Read-only file system: '/usr/app/dbt/logs/dbt.log'"""
+    data = _compose()
+    env = data["services"]["lightdash"].get("environment", {})
+    assert env.get("DBT_LOG_PATH", "").startswith("/tmp/"), (
+        f"DBT_LOG_PATH must redirect to /tmp/... (got '{env.get('DBT_LOG_PATH')}')"
+    )
+    assert env.get("DBT_TARGET_PATH", "").startswith("/tmp/"), (
+        f"DBT_TARGET_PATH must redirect to /tmp/... (got '{env.get('DBT_TARGET_PATH')}')"
+    )
+
+
 def test_lightdash_depends_on_db_with_healthcheck():
     """Lightdash crashes if it tries to connect to Postgres before Postgres is ready,
     so depends_on must include a service_healthy condition."""
@@ -85,7 +101,12 @@ def test_db_service_has_healthcheck():
 
 def test_dbt_project_mounted_as_sibling():
     """The Lightdash container expects the dbt project at /usr/app/dbt.
-    The mount source must be the sibling b2b-saas-dbt directory."""
+    The mount source must be the sibling b2b-saas-dbt directory.
+
+    Mount is read-write (not :ro) because `dbt deps` needs to refresh
+    dbt_packages/ inside the project. Run artifacts (logs, target/) are
+    redirected to /tmp via DBT_LOG_PATH/DBT_TARGET_PATH env vars to keep
+    the host working tree clean — see test_dbt_log_and_target_paths_redirected."""
     data = _compose()
     volumes = data["services"]["lightdash"].get("volumes", [])
     dbt_mount = next((v for v in volumes if "/usr/app/dbt" in v), None)
@@ -93,7 +114,6 @@ def test_dbt_project_mounted_as_sibling():
     assert dbt_mount.startswith("../b2b-saas-dbt"), (
         f"dbt mount source must be the sibling repo, got '{dbt_mount}'"
     )
-    assert ":ro" in dbt_mount, "dbt project must be mounted read-only"
 
 
 def test_env_example_documents_required_vars():
