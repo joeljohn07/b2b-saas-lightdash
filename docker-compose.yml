@@ -23,6 +23,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     environment:
       # ---- Lightdash core ----
       LIGHTDASH_SECRET: ${LIGHTDASH_SECRET}
@@ -47,6 +49,19 @@ services:
       # to /tmp paths that are writable inside the container.
       DBT_LOG_PATH: /tmp/dbt-logs
       DBT_TARGET_PATH: /tmp/dbt-target
+      # ---- S3-compatible storage for BigQuery result pagination ----
+      # Lightdash 0.2914+ requires S3-compatible storage to paginate query
+      # results from BigQuery. MinIO provides the S3 API locally. Setting
+      # S3_PUBLIC_ENDPOINT to localhost so presigned URLs work in the browser
+      # (the in-cluster endpoint http://minio:9000 isn't reachable from outside
+      # Docker's network).
+      S3_ENDPOINT: http://minio:9000
+      S3_PUBLIC_ENDPOINT: http://localhost:9000
+      S3_BUCKET: lightdash-results
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      S3_SECRET_KEY: ${MINIO_SECRET_KEY}
+      S3_FORCE_PATH_STYLE: "true"
     ports:
       - "${LIGHTDASH_PORT:-8080}:8080"
     volumes:
@@ -62,6 +77,49 @@ services:
       # Lightdash UI on first project setup instead.
       - ${HOME}/.config/gcloud:/root/.config/gcloud:ro
     restart: unless-stopped
+
+  minio:
+    # S3-compatible storage backend for Lightdash query result pagination.
+    # Required by Lightdash 0.2914+ to render BigQuery query results — without
+    # it, queries succeed but the UI errors with "Native pagination not
+    # supported. Please configure S3 Storage to use bigquery".
+    image: minio/minio:latest
+    container_name: lightdash-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - lightdash-minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  minio-init:
+    # One-shot container that waits for MinIO to be healthy, then creates the
+    # lightdash-results bucket. Exits after running. Re-running compose up
+    # re-runs this; bucket creation is idempotent (--ignore-existing).
+    image: minio/mc:latest
+    container_name: lightdash-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+    entrypoint: |-
+      sh -c "
+        mc alias set local http://minio:9000 \"$$MINIO_ACCESS_KEY\" \"$$MINIO_SECRET_KEY\" &&
+        mc mb --ignore-existing local/lightdash-results &&
+        echo 'Bucket lightdash-results ready.'
+      "
+    restart: "no"
 
   db:
     image: postgres:16-alpine
@@ -81,3 +139,4 @@ services:
 
 volumes:
   lightdash-pgdata:
+  lightdash-minio-data:

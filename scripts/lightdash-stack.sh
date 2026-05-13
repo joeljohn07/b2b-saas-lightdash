@@ -13,8 +13,10 @@
 #   scripts/lightdash-stack.sh ps         # status
 #
 # Required Keychain entries (one-time setup via `security add-generic-password`):
-#   - lightdash-secret      : 64-char hex (LIGHTDASH_SECRET)
-#   - lightdash-pgpassword  : strong password (PGPASSWORD)
+#   - lightdash-secret             : 64-char hex (LIGHTDASH_SECRET)
+#   - lightdash-pgpassword         : strong password (PGPASSWORD)
+#   - lightdash-minio-access-key   : MinIO access key (MINIO_ACCESS_KEY)
+#   - lightdash-minio-secret-key   : MinIO secret key (MINIO_SECRET_KEY)
 #
 # Required env vars at call time:
 #   - GCP_PROJECT_ID  : your BigQuery project ID
@@ -37,13 +39,25 @@ PGPASSWORD="$(security find-generic-password -s 'lightdash-pgpassword' -a "$USER
     exit 1
 }
 
+MINIO_ACCESS_KEY="$(security find-generic-password -s 'lightdash-minio-access-key' -a "$USER" -w 2>/dev/null)" || {
+    echo "ERROR: lightdash-minio-access-key not found in Keychain." >&2
+    echo "  Create it with:  security add-generic-password -s 'lightdash-minio-access-key' -a \"\$USER\" -w \"lightdash-results-rw\"" >&2
+    exit 1
+}
+
+MINIO_SECRET_KEY="$(security find-generic-password -s 'lightdash-minio-secret-key' -a "$USER" -w 2>/dev/null)" || {
+    echo "ERROR: lightdash-minio-secret-key not found in Keychain." >&2
+    echo "  Create it with:  security add-generic-password -s 'lightdash-minio-secret-key' -a \"\$USER\" -w \"\$(openssl rand -base64 32 | tr -d '/+=')\"" >&2
+    exit 1
+}
+
 if [[ -z "${GCP_PROJECT_ID:-}" ]]; then
     echo "WARN: GCP_PROJECT_ID is not set. Lightdash will fail to connect to BigQuery." >&2
     echo "      Export it before bringing up the stack:" >&2
     echo "        export GCP_PROJECT_ID=your-bq-project" >&2
 fi
 
-export LIGHTDASH_SECRET PGPASSWORD
+export LIGHTDASH_SECRET PGPASSWORD MINIO_ACCESS_KEY MINIO_SECRET_KEY
 
 # --- Dispatch ---
 cmd="${1:-up}"

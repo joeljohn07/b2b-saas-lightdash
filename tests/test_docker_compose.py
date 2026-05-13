@@ -34,11 +34,35 @@ def test_compose_parses_as_yaml():
 
 
 def test_compose_defines_required_services():
-    """The stack needs both the Lightdash app and its Postgres backend."""
+    """The stack needs the Lightdash app, its Postgres backend, MinIO for
+    S3-compatible result storage, and a one-shot init container that
+    creates the results bucket."""
     data = _compose()
     services = data.get("services", {})
-    for required in ("lightdash", "db"):
+    for required in ("lightdash", "db", "minio", "minio-init"):
         assert required in services, f"docker-compose.yml missing service: {required}"
+
+
+def test_lightdash_s3_env_points_to_minio():
+    """Lightdash 0.2914+ needs S3-compatible storage for BigQuery result
+    pagination. Without these env vars, queries succeed but result rendering
+    errors with: Native pagination not supported. Please configure S3 Storage."""
+    data = _compose()
+    env = data["services"]["lightdash"].get("environment", {})
+    assert env.get("S3_ENDPOINT") == "http://minio:9000", (
+        f"S3_ENDPOINT must point to in-network minio (got '{env.get('S3_ENDPOINT')}')"
+    )
+    assert env.get("S3_BUCKET") == "lightdash-results", (
+        f"S3_BUCKET must be lightdash-results (got '{env.get('S3_BUCKET')}')"
+    )
+    assert env.get("S3_FORCE_PATH_STYLE") == "true", (
+        "S3_FORCE_PATH_STYLE must be true for MinIO"
+    )
+    # The public endpoint is required for presigned URLs to work in the browser
+    # (the in-network http://minio:9000 isn't reachable from outside Docker).
+    assert env.get("S3_PUBLIC_ENDPOINT") == "http://localhost:9000", (
+        "S3_PUBLIC_ENDPOINT must point at localhost so browser-facing presigned URLs resolve"
+    )
 
 
 def test_lightdash_service_uses_official_image():
