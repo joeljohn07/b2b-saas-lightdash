@@ -85,19 +85,21 @@ def test_lightdash_platform_pinned_to_amd64():
     )
 
 
-def test_dbt_log_and_target_paths_redirected():
-    """The dbt subprocess Lightdash spawns wants to write logs and a target/
-    directory. The project mount is read-only (deliberately), so logs and
-    target must be redirected to writable /tmp paths. Without this, the
-    Lightdash 'Test & deploy' step fails with:
-        OSError: [Errno 30] Read-only file system: '/usr/app/dbt/logs/dbt.log'"""
+def test_dbt_log_and_target_paths_not_redirected():
+    """dbt writes target/ (manifest) and logs/ inside DBT_PROJECT_DIR by default.
+    Both are gitignored in b2b-saas-dbt — so the host working tree stays clean
+    without redirect, AND Lightdash can find the manifest at the default
+    target/ path. We previously set DBT_LOG_PATH/DBT_TARGET_PATH to /tmp but
+    that broke Lightdash's manifest discovery (it read a stale manifest from
+    the un-redirected target/ instead). This test guards against that
+    regression."""
     data = _compose()
     env = data["services"]["lightdash"].get("environment", {})
-    assert env.get("DBT_LOG_PATH", "").startswith("/tmp/"), (
-        f"DBT_LOG_PATH must redirect to /tmp/... (got '{env.get('DBT_LOG_PATH')}')"
+    assert "DBT_LOG_PATH" not in env, (
+        "DBT_LOG_PATH must NOT be set — see comment in docker-compose.yml"
     )
-    assert env.get("DBT_TARGET_PATH", "").startswith("/tmp/"), (
-        f"DBT_TARGET_PATH must redirect to /tmp/... (got '{env.get('DBT_TARGET_PATH')}')"
+    assert "DBT_TARGET_PATH" not in env, (
+        "DBT_TARGET_PATH must NOT be set — see comment in docker-compose.yml"
     )
 
 
