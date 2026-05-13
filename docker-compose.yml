@@ -39,16 +39,16 @@ services:
       PGDATABASE: ${PGDATABASE:-lightdash}
       # ---- dbt project location (inside the container) ----
       # The dbt project is mounted from the sibling repo, see `volumes` below.
+      # dbt writes target/ (manifest, run results) and logs/ inside the project
+      # directory by default — both are gitignored in b2b-saas-dbt so the host
+      # working tree stays clean. We do NOT set DBT_LOG_PATH / DBT_TARGET_PATH:
+      # Lightdash reads the manifest from the default target/ path, and a redirect
+      # there left it reading a stale manifest from an earlier local build
+      # (causing project-ID drift in the cached explore — see commit history).
       DBT_PROJECT_DIR: /usr/app/dbt
       # The dbt project's _sources.yml files use env_var('GCP_PROJECT_ID') so
       # the dbt subprocess inside the container needs this passed through.
       GCP_PROJECT_ID: ${GCP_PROJECT_ID}
-      # The dbt subprocess Lightdash spawns wants to write logs and compiled
-      # artifacts. We mount the project read-only (deliberately — the user's
-      # working copy must not be mutated by Lightdash), so redirect the writes
-      # to /tmp paths that are writable inside the container.
-      DBT_LOG_PATH: /tmp/dbt-logs
-      DBT_TARGET_PATH: /tmp/dbt-target
       # ---- S3-compatible storage for BigQuery result pagination ----
       # Lightdash 0.2914+ requires S3-compatible storage to paginate query
       # results from BigQuery. MinIO provides the S3 API locally. Setting
